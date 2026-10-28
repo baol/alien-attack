@@ -1,292 +1,162 @@
 use bevy::prelude::*;
 
 use crate::assets::{play_sfx, GameAssets};
-use crate::combat::PlayerProjectile;
-use crate::player::{PlayerCharge, PlayerShield, MAX_PLAYER_SHOTS};
-use crate::{GameState, PlayerStats};
+use crate::player::PlayerCharge;
+use crate::{GameState, HighScore, PlayerStats};
+use crate::save_highscore;
 
 #[derive(Component)]
 pub struct ScoreText;
 
 #[derive(Component)]
-pub struct LevelText;
+pub struct HighScoreText;
 
 #[derive(Component)]
-pub struct ShieldText;
-
-#[derive(Component)]
-pub struct LivesText;
-
-#[derive(Component)]
-pub struct ShotsText;
+pub struct LifeIcon {
+    pub slot: u32,
+}
 
 #[derive(Component)]
 pub struct ChargeBarFill;
 
 #[derive(Component)]
-pub struct ChargeStatusText;
-
-#[derive(Component)]
 pub struct OverlayRoot;
 
-pub fn setup_ui(mut commands: Commands) {
-    // Top HUD bar
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(44.0),
-                padding: UiRect::axes(Val::Px(20.0), Val::Px(8.0)),
-                justify_content: JustifyContent::SpaceBetween,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.04, 0.05, 0.12, 0.85)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                ScoreText,
-                Text::new("SCORE: 0000"),
-                TextFont {
-                    font_size: 19.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.3, 0.95, 1.0)),
-            ));
+#[derive(Component)]
+pub struct HelpOverlayRoot;
 
-            parent.spawn((
-                LevelText,
-                Text::new("LEVEL: 1 / 2"),
-                TextFont {
-                    font_size: 19.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(1.0, 0.85, 0.25)),
-            ));
-
-            parent.spawn((
-                ShieldText,
-                Text::new("SHIELD: READY"),
-                TextFont {
-                    font_size: 18.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.2, 0.95, 0.7)),
-            ));
-
-            parent.spawn((
-                ShotsText,
-                Text::new("SHOTS: 0 / 3"),
-                TextFont {
-                    font_size: 18.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.85, 0.9, 1.0)),
-            ));
-
-            parent.spawn((
-                LivesText,
-                Text::new("LIVES: 3"),
-                TextFont {
-                    font_size: 19.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(1.0, 0.4, 0.65)),
-            ));
-        });
-
-    // Bottom Charge Bar & Controls HUD
+pub fn setup_ui(mut commands: Commands, assets: Res<GameAssets>) {
+    // Top HUD: score, highscore, lives icons
     commands
         .spawn(Node {
             position_type: PositionType::Absolute,
-            bottom: Val::Px(8.0),
-            left: Val::Px(20.0),
-            right: Val::Px(20.0),
-            height: Val::Px(28.0),
+            top: Val::Px(10.0),
+            left: Val::Px(16.0),
+            right: Val::Px(16.0),
             justify_content: JustifyContent::SpaceBetween,
             align_items: AlignItems::Center,
             ..default()
         })
         .with_children(|parent| {
             parent.spawn((
-                Text::new(
-                    "Arrows/Stick/Swipe: Move | Space/A: Fire (2s Beam) | Alt/B: Shield | F: Full",
-                ),
+                ScoreText,
+                Text::new("SCORE 0000"),
                 TextFont {
-                    font_size: 11.5,
+                    font: assets.font.clone(),
+                    font_size: 14.0,
                     ..default()
                 },
-                TextColor(Color::srgba(0.75, 0.8, 0.95, 0.85)),
+                TextColor(Color::srgb(0.3, 0.95, 1.0)),
             ));
 
-            // Charge container
+            parent.spawn((
+                HighScoreText,
+                Text::new("HI 0000"),
+                TextFont {
+                    font: assets.font.clone(),
+                    font_size: 14.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(1.0, 0.85, 0.25)),
+            ));
+
             parent
                 .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(6.0),
                     align_items: AlignItems::Center,
-                    column_gap: Val::Px(10.0),
                     ..default()
                 })
                 .with_children(|row| {
-                    row.spawn((
-                        ChargeStatusText,
-                        Text::new("CHARGE (2s):"),
-                        TextFont {
-                            font_size: 14.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.6, 0.85, 1.0)),
-                    ));
-
-                    row.spawn((
-                        Node {
-                            width: Val::Px(130.0),
-                            height: Val::Px(14.0),
-                            border: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        BorderColor(Color::srgb(0.35, 0.6, 0.9)),
-                        BackgroundColor(Color::srgb(0.08, 0.1, 0.18)),
-                    ))
-                    .with_children(|bar| {
-                        bar.spawn((
-                            ChargeBarFill,
+                    for slot in 0..3u32 {
+                        row.spawn((
+                            LifeIcon { slot },
+                            ImageNode::from_atlas_image(
+                                assets.player_texture.clone(),
+                                TextureAtlas {
+                                    layout: assets.player_layout.clone(),
+                                    index: 0,
+                                },
+                            ),
                             Node {
-                                width: Val::Percent(0.0),
-                                height: Val::Percent(100.0),
+                                width: Val::Px(22.0),
+                                height: Val::Px(22.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgb(0.1, 0.85, 1.0)),
                         ));
-                    });
+                    }
+                });
+        });
+
+    // Bottom: charge bar only
+    commands
+        .spawn(Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            ..default()
+        })
+        .with_children(|parent| {
+            parent
+                .spawn((
+                    Node {
+                        width: Val::Px(180.0),
+                        height: Val::Px(8.0),
+                        border: UiRect::all(Val::Px(1.0)),
+                        ..default()
+                    },
+                    BorderColor(Color::srgb(0.35, 0.6, 0.9)),
+                    BackgroundColor(Color::srgb(0.08, 0.1, 0.18)),
+                ))
+                .with_children(|bar| {
+                    bar.spawn((
+                        ChargeBarFill,
+                        Node {
+                            width: Val::Percent(0.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.1, 0.85, 1.0)),
+                    ));
                 });
         });
 }
 
 pub fn update_hud(
     stats: Res<PlayerStats>,
+    mut highscore: ResMut<HighScore>,
     charge: Res<PlayerCharge>,
-    shield: Res<PlayerShield>,
-    active_shots: Query<&PlayerProjectile>,
-    mut score_q: Query<
-        &mut Text,
-        (
-            With<ScoreText>,
-            Without<LevelText>,
-            Without<ShieldText>,
-            Without<LivesText>,
-            Without<ShotsText>,
-            Without<ChargeStatusText>,
-        ),
-    >,
-    mut level_q: Query<
-        &mut Text,
-        (
-            With<LevelText>,
-            Without<ScoreText>,
-            Without<ShieldText>,
-            Without<LivesText>,
-            Without<ShotsText>,
-            Without<ChargeStatusText>,
-        ),
-    >,
-    mut shield_q: Query<
-        (&mut Text, &mut TextColor),
-        (
-            With<ShieldText>,
-            Without<ScoreText>,
-            Without<LevelText>,
-            Without<LivesText>,
-            Without<ShotsText>,
-            Without<ChargeStatusText>,
-        ),
-    >,
-    mut lives_q: Query<
-        &mut Text,
-        (
-            With<LivesText>,
-            Without<ScoreText>,
-            Without<LevelText>,
-            Without<ShieldText>,
-            Without<ShotsText>,
-            Without<ChargeStatusText>,
-        ),
-    >,
-    mut shots_q: Query<
-        (&mut Text, &mut TextColor),
-        (
-            With<ShotsText>,
-            Without<ScoreText>,
-            Without<LevelText>,
-            Without<ShieldText>,
-            Without<LivesText>,
-            Without<ChargeStatusText>,
-        ),
-    >,
-    mut status_q: Query<
-        (&mut Text, &mut TextColor),
-        (
-            With<ChargeStatusText>,
-            Without<ScoreText>,
-            Without<LevelText>,
-            Without<ShieldText>,
-            Without<LivesText>,
-            Without<ShotsText>,
-        ),
-    >,
+    mut score_q: Query<&mut Text, (With<ScoreText>, Without<HighScoreText>)>,
+    mut highscore_q: Query<&mut Text, (With<HighScoreText>, Without<ScoreText>)>,
+    mut lives_q: Query<(&mut Visibility, &LifeIcon)>,
     mut bar_q: Query<(&mut Node, &mut BackgroundColor), With<ChargeBarFill>>,
 ) {
+    if stats.score > highscore.value {
+        highscore.value = stats.score;
+        save_highscore(highscore.value);
+    }
+
     if let Ok(mut text) = score_q.get_single_mut() {
-        let new_val = format!("SCORE: {:04}", stats.score);
+        let new_val = format!("SCORE {:04}", stats.score);
         if **text != new_val {
             **text = new_val;
         }
     }
 
-    if let Ok(mut text) = level_q.get_single_mut() {
-        let new_val = format!("LEVEL: {} / 2", stats.level);
+    if let Ok(mut text) = highscore_q.get_single_mut() {
+        let new_val = format!("HI {:04}", highscore.value);
         if **text != new_val {
             **text = new_val;
         }
     }
 
-    if let Ok((mut text, mut color)) = shield_q.get_single_mut() {
-        let (new_val, new_col) = if shield.is_active() {
-            (
-                format!("SHIELD: {:.1}s", shield.active_remaining),
-                Color::srgb(0.2, 0.95, 1.0),
-            )
-        } else if shield.cooldown_remaining > 0.0 {
-            (
-                format!("SHIELD CD: {:.1}s", shield.cooldown_remaining),
-                Color::srgb(0.65, 0.65, 0.75),
-            )
+    for (mut vis, icon) in &mut lives_q {
+        *vis = if icon.slot < stats.lives as u32 {
+            Visibility::Visible
         } else {
-            ("SHIELD: READY".to_string(), Color::srgb(0.2, 0.95, 0.7))
+            Visibility::Hidden
         };
-        if **text != new_val {
-            **text = new_val;
-            *color = TextColor(new_col);
-        }
-    }
-
-    if let Ok(mut text) = lives_q.get_single_mut() {
-        let new_val = format!("LIVES: {}", stats.lives);
-        if **text != new_val {
-            **text = new_val;
-        }
-    }
-
-    let shot_count = active_shots.iter().count();
-    if let Ok((mut text, mut color)) = shots_q.get_single_mut() {
-        let new_val = format!("SHOTS: {} / {}", shot_count, MAX_PLAYER_SHOTS);
-        if **text != new_val {
-            **text = new_val;
-            if shot_count >= MAX_PLAYER_SHOTS {
-                *color = TextColor(Color::srgb(1.0, 0.45, 0.35));
-            } else {
-                *color = TextColor(Color::srgb(0.85, 0.9, 1.0));
-            }
-        }
     }
 
     let progress = charge.progress();
@@ -306,23 +176,65 @@ pub fn update_hud(
             *bg = BackgroundColor(target_bg);
         }
     }
+}
 
-    if let Ok((mut text, mut color)) = status_q.get_single_mut() {
-        let (new_val, new_col) = if ready {
-            ("MEGA-BEAM READY!".to_string(), Color::srgb(1.0, 0.92, 0.2))
-        } else if charge.is_charging {
-            (
-                format!("CHARGING {:.1}s", charge.hold_seconds),
-                Color::srgb(0.3, 0.9, 1.0),
-            )
+pub fn toggle_help_overlay(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    existing: Query<Entity, With<HelpOverlayRoot>>,
+    assets: Res<GameAssets>,
+) {
+    if keyboard.just_pressed(KeyCode::KeyH) || keyboard.just_pressed(KeyCode::F1) {
+        if let Some(entity) = existing.iter().next() {
+            commands.entity(entity).despawn_recursive();
         } else {
-            ("CHARGE (2s):".to_string(), Color::srgb(0.6, 0.85, 1.0))
-        };
-        if **text != new_val {
-            **text = new_val;
-            *color = TextColor(new_col);
+            spawn_help_overlay(&mut commands, &assets);
         }
     }
+}
+
+fn spawn_help_overlay(commands: &mut Commands, assets: &GameAssets) {
+    commands
+        .spawn((
+            HelpOverlayRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(10.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.02, 0.02, 0.06, 0.88)),
+        ))
+        .with_children(|parent| {
+            let lines = [
+                "ALIEN ATTACK",
+                "Arrows / Stick / Swipe: Move",
+                "Space / A: Fire (hold 2s = Mega-Beam)",
+                "Alt / B: Shield",
+                "F / F11: Fullscreen",
+                "R / Enter: Restart",
+                "H / F1: Toggle Help",
+            ];
+            for (i, line) in lines.iter().enumerate() {
+                parent.spawn((
+                    Text::new(*line),
+                    TextFont {
+                        font: assets.font.clone(),
+                        font_size: if i == 0 { 20.0 } else { 12.0 },
+                        ..default()
+                    },
+                    TextColor(if i == 0 {
+                        Color::srgb(0.3, 0.95, 1.0)
+                    } else {
+                        Color::srgb(0.85, 0.9, 1.0)
+                    }),
+                ));
+            }
+        });
 }
 
 pub fn spawn_end_overlay(
@@ -362,7 +274,8 @@ pub fn spawn_end_overlay(
             parent.spawn((
                 Text::new(title),
                 TextFont {
-                    font_size: 46.0,
+                    font: assets.font.clone(),
+                    font_size: 24.0,
                     ..default()
                 },
                 TextColor(title_color),
@@ -371,7 +284,8 @@ pub fn spawn_end_overlay(
             parent.spawn((
                 Text::new(format!("FINAL SCORE: {:04}", stats.score)),
                 TextFont {
-                    font_size: 26.0,
+                    font: assets.font.clone(),
+                    font_size: 16.0,
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -380,7 +294,7 @@ pub fn spawn_end_overlay(
             parent.spawn((
                 Text::new("Press R, ENTER, or Controller START / A to Play Again"),
                 TextFont {
-                    font_size: 20.0,
+                    font_size: 14.0,
                     ..default()
                 },
                 TextColor(Color::srgb(0.95, 0.9, 0.35)),

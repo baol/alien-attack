@@ -16,6 +16,7 @@ pub struct GameAssets {
     pub sfx_shield_hit: Handle<AudioSource>,
     pub sfx_victory: Handle<AudioSource>,
     pub sfx_game_over: Handle<AudioSource>,
+    pub font: Handle<Font>,
 }
 
 pub fn play_sfx(commands: &mut Commands, source: Handle<AudioSource>) {
@@ -60,5 +61,6 @@ pub fn load_game_assets(
         sfx_shield_hit: asset_server.load("sounds/shield_hit.wav"),
         sfx_victory: asset_server.load("sounds/victory.wav"),
         sfx_game_over: asset_server.load("sounds/game_over.wav"),
+        font: asset_server.load("fonts/PressStart2P-Regular.ttf"),
     });
 }

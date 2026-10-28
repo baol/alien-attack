@@ -21,7 +21,7 @@ use player::{
     spawn_player, spawn_player_entities, sync_wasm_touch_controls, PlayerCharge, PlayerRespawn,
     PlayerShield,
 };
-use ui::{despawn_end_overlay, setup_ui, spawn_end_overlay, update_hud};
+use ui::{despawn_end_overlay, setup_ui, spawn_end_overlay, toggle_help_overlay, update_hud};
 
 #[derive(States, Debug, Clone, Copy, Eq, PartialEq, Hash, Default)]
 pub enum GameState {
@@ -52,6 +52,49 @@ impl Default for PlayerStats {
             score: 0,
             lives: 3,
             level: 1,
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct HighScore {
+    pub value: u32,
+}
+
+pub fn load_highscore(mut hs: ResMut<HighScore>) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Ok(contents) = std::fs::read_to_string("highscore.txt") {
+            if let Ok(v) = contents.trim().parse::<u32>() {
+                hs.value = v;
+            }
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(win) = web_sys::window() {
+            if let Ok(Some(storage)) = win.local_storage() {
+                if let Ok(Some(v)) = storage.get_item("alien_attack_highscore") {
+                    if let Ok(n) = v.parse::<u32>() {
+                        hs.value = n;
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn save_highscore(value: u32) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = std::fs::write("highscore.txt", value.to_string());
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(win) = web_sys::window() {
+            if let Ok(Some(storage)) = win.local_storage() {
+                let _ = storage.set_item("alien_attack_highscore", &value.to_string());
+            }
         }
     }
 }
@@ -87,6 +130,7 @@ fn main() {
         )
         .insert_resource(ClearColor(Color::srgb(0.02, 0.02, 0.07)))
         .init_resource::<PlayerStats>()
+        .init_resource::<HighScore>()
         .init_resource::<PlayerCharge>()
         .init_resource::<PlayerShield>()
         .init_resource::<PlayerRespawn>()
@@ -96,7 +140,8 @@ fn main() {
             (
                 setup_camera_and_starfield,
                 load_game_assets,
-                setup_ui,
+                setup_ui.after(load_game_assets),
+                load_highscore.after(load_game_assets),
                 (spawn_player, spawn_aliens).after(load_game_assets),
             ),
         )
@@ -106,6 +151,7 @@ fn main() {
                 sync_wasm_touch_controls,
                 animate_starfield,
                 toggle_fullscreen_system,
+                toggle_help_overlay,
             ),
         )
         .add_systems(
