@@ -6,6 +6,20 @@ pub struct GameAssets {
     pub alien_layout: Handle<TextureAtlasLayout>,
     pub player_texture: Handle<Image>,
     pub player_layout: Handle<TextureAtlasLayout>,
+    pub sfx_laser: Handle<AudioSource>,
+    pub sfx_mega_beam: Handle<AudioSource>,
+    pub sfx_charge_ready: Handle<AudioSource>,
+    pub sfx_alien_laser: Handle<AudioSource>,
+    pub sfx_alien_explode: Handle<AudioSource>,
+    pub sfx_player_explode: Handle<AudioSource>,
+    pub sfx_shield_up: Handle<AudioSource>,
+    pub sfx_shield_hit: Handle<AudioSource>,
+    pub sfx_victory: Handle<AudioSource>,
+    pub sfx_game_over: Handle<AudioSource>,
+}
+
+pub fn play_sfx(commands: &mut Commands, source: Handle<AudioSource>) {
+    commands.spawn((AudioPlayer::new(source), PlaybackSettings::DESPAWN));
 }
 
 pub fn load_game_assets(
@@ -36,5 +50,15 @@ pub fn load_game_assets(
         alien_layout,
         player_texture,
         player_layout,
+        sfx_laser: asset_server.load("sounds/laser.ogg"),
+        sfx_mega_beam: asset_server.load("sounds/mega_beam.ogg"),
+        sfx_charge_ready: asset_server.load("sounds/charge_ready.ogg"),
+        sfx_alien_laser: asset_server.load("sounds/alien_laser.ogg"),
+        sfx_alien_explode: asset_server.load("sounds/alien_explode.ogg"),
+        sfx_player_explode: asset_server.load("sounds/player_explode.ogg"),
+        sfx_shield_up: asset_server.load("sounds/shield_up.ogg"),
+        sfx_shield_hit: asset_server.load("sounds/shield_hit.ogg"),
+        sfx_victory: asset_server.load("sounds/victory.ogg"),
+        sfx_game_over: asset_server.load("sounds/game_over.ogg"),
     });
 }

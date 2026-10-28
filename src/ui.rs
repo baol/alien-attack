@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::assets::{play_sfx, GameAssets};
 use crate::combat::PlayerProjectile;
 use crate::player::{PlayerCharge, PlayerShield, MAX_PLAYER_SHOTS};
 use crate::{GameState, PlayerStats};
@@ -108,9 +109,11 @@ pub fn setup_ui(mut commands: Commands) {
         })
         .with_children(|parent| {
             parent.spawn((
-                Text::new("Move: Arrows/Stick | Fire (Hold 2s Beam): Space / A | Shield: Alt / B"),
+                Text::new(
+                    "Move: Arrows/Stick | Fire (2s Beam): Space/A | Shield: Alt/B | Fullscreen: F/F11/Y",
+                ),
                 TextFont {
-                    font_size: 13.5,
+                    font_size: 13.0,
                     ..default()
                 },
                 TextColor(Color::srgba(0.75, 0.8, 0.95, 0.85)),
@@ -297,10 +300,17 @@ pub fn spawn_end_overlay(
     mut commands: Commands,
     state: Res<State<GameState>>,
     stats: Res<PlayerStats>,
+    assets: Res<GameAssets>,
 ) {
     let (title, title_color) = match state.get() {
-        GameState::Victory => ("VICTORY! SECTOR CLEARED", Color::srgb(0.3, 1.0, 0.55)),
-        GameState::GameOver => ("GAME OVER", Color::srgb(1.0, 0.3, 0.45)),
+        GameState::Victory => {
+            play_sfx(&mut commands, assets.sfx_victory.clone());
+            ("VICTORY! SECTOR CLEARED", Color::srgb(0.3, 1.0, 0.55))
+        }
+        GameState::GameOver => {
+            play_sfx(&mut commands, assets.sfx_game_over.clone());
+            ("GAME OVER", Color::srgb(1.0, 0.3, 0.45))
+        }
         GameState::Playing => return,
     };
 

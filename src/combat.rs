@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::aliens::Alien;
+use crate::assets::{play_sfx, GameAssets};
 use crate::player::{Player, PlayerRespawn, PlayerShield, RESPAWN_DELAY_SECS};
 use crate::{GameEntity, GameState, PlayerStats};
 
@@ -135,6 +136,7 @@ pub fn handle_collisions(
     mut commands: Commands,
     mut stats: ResMut<PlayerStats>,
     shield: Res<PlayerShield>,
+    assets: Res<GameAssets>,
     mut respawn: ResMut<PlayerRespawn>,
     mut next_state: ResMut<NextState<GameState>>,
     player_shots: Query<(Entity, &PlayerProjectile, &Transform)>,
@@ -156,6 +158,9 @@ pub fn handle_collisions(
 
             let alien_pos = alien_transform.translation.truncate();
             if aabb_overlap(shot_pos, shot.hitbox, alien_pos, alien_size) {
+                if destroyed_aliens.is_empty() {
+                    play_sfx(&mut commands, assets.sfx_alien_explode.clone());
+                }
                 destroyed_aliens.insert(alien_entity);
                 commands.entity(alien_entity).despawn_recursive();
                 stats.score += alien.points;
@@ -194,6 +199,7 @@ pub fn handle_collisions(
 
             if shield.is_active() {
                 // Shield absorbs enemy fire with a cyan spark burst!
+                play_sfx(&mut commands, assets.sfx_shield_hit.clone());
                 spawn_explosion(
                     &mut commands,
                     shot_transform.translation,
@@ -203,6 +209,7 @@ pub fn handle_collisions(
             }
 
             // Player hit without shield: explode and either respawn or Game Over
+            play_sfx(&mut commands, assets.sfx_player_explode.clone());
             spawn_ship_destruction_explosion(&mut commands, player_transform.translation);
             commands.entity(player_entity).despawn_recursive();
 
@@ -228,6 +235,7 @@ pub fn handle_collisions(
 
             if shield.is_active() {
                 // Shield vaporizes colliding alien and awards points!
+                play_sfx(&mut commands, assets.sfx_shield_hit.clone());
                 stats.score += alien.points;
                 spawn_explosion(
                     &mut commands,
@@ -237,6 +245,7 @@ pub fn handle_collisions(
                 continue;
             }
 
+            play_sfx(&mut commands, assets.sfx_player_explode.clone());
             spawn_ship_destruction_explosion(&mut commands, player_transform.translation);
             commands.entity(player_entity).despawn_recursive();
 

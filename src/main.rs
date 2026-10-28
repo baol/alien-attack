@@ -5,6 +5,8 @@ mod player;
 mod ui;
 
 use bevy::prelude::*;
+use bevy::render::camera::ScalingMode;
+use bevy::window::{MonitorSelection, WindowMode};
 use rand::Rng;
 
 use aliens::{
@@ -82,7 +84,7 @@ fn main() {
                 (spawn_player, spawn_aliens).after(load_game_assets),
             ),
         )
-        .add_systems(Update, animate_starfield)
+        .add_systems(Update, (animate_starfield, toggle_fullscreen_system))
         .add_systems(
             Update,
             (
@@ -115,7 +117,16 @@ fn main() {
 }
 
 fn setup_camera_and_starfield(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn((
+        Camera2d,
+        OrthographicProjection {
+            scaling_mode: ScalingMode::AutoMin {
+                min_width: 800.0,
+                min_height: 600.0,
+            },
+            ..OrthographicProjection::default_2d()
+        },
+    ));
 
     let mut rng = rand::thread_rng();
     for _ in 0..85 {
@@ -146,6 +157,34 @@ fn animate_starfield(time: Res<Time>, mut query: Query<(&Star, &mut Transform)>)
     }
 }
 
+fn toggle_fullscreen_system(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    gamepads: Query<&Gamepad>,
+    mut windows: Query<&mut Window>,
+) {
+    let alt_held = keyboard.pressed(KeyCode::AltLeft) || keyboard.pressed(KeyCode::AltRight);
+    let alt_enter = alt_held && keyboard.just_pressed(KeyCode::Enter);
+    let key_toggle = keyboard.just_pressed(KeyCode::KeyF)
+        || keyboard.just_pressed(KeyCode::F11)
+        || alt_enter;
+
+    // Xbox controller: Y button (GamepadButton::North) or View/Select button (GamepadButton::Select)
+    let gamepad_toggle = gamepads.iter().any(|gp| {
+        gp.just_pressed(GamepadButton::North) || gp.just_pressed(GamepadButton::Select)
+    });
+
+    if key_toggle || gamepad_toggle {
+        if let Ok(mut window) = windows.get_single_mut() {
+            window.mode = match window.mode {
+                WindowMode::Windowed => {
+                    WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+                }
+                _ => WindowMode::Windowed,
+            };
+        }
+    }
+}
+
 fn restart_game_system(
     mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -157,14 +196,13 @@ fn restart_game_system(
     mut respawn: ResMut<PlayerRespawn>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    let alt_held = keyboard.pressed(KeyCode::AltLeft) || keyboard.pressed(KeyCode::AltRight);
+    let enter_restart = keyboard.just_pressed(KeyCode::Enter) && !alt_held;
     let gamepad_restart = gamepads
         .iter()
         .any(|gp| gp.just_pressed(GamepadButton::Start) || gp.just_pressed(GamepadButton::South));
 
-    if keyboard.just_pressed(KeyCode::KeyR)
-        || keyboard.just_pressed(KeyCode::Enter)
-        || gamepad_restart
-    {
+    if keyboard.just_pressed(KeyCode::KeyR) || enter_restart || gamepad_restart {
         for entity in &game_entities {
             commands.entity(entity).despawn_recursive();
         }

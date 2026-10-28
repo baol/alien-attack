@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::assets::GameAssets;
+use crate::assets::{play_sfx, GameAssets};
 use crate::combat::PlayerProjectile;
 use crate::GameEntity;
 
@@ -54,6 +54,7 @@ impl PlayerCharge {
 pub struct PlayerShield {
     pub active_remaining: f32,
     pub cooldown_remaining: f32,
+    pub alt_combo_used: bool,
 }
 
 impl Default for PlayerShield {
@@ -61,6 +62,7 @@ impl Default for PlayerShield {
         Self {
             active_remaining: 0.0,
             cooldown_remaining: 0.0,
+            alt_combo_used: false,
         }
     }
 }
@@ -170,10 +172,12 @@ pub fn player_movement(
 }
 
 pub fn player_shield_system(
+    mut commands: Commands,
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
     gamepads: Query<&Gamepad>,
     mut shield: ResMut<PlayerShield>,
+    assets: Res<GameAssets>,
     player_query: Query<Entity, With<Player>>,
     mut bubble_query: Query<(&mut Sprite, &mut Transform), With<ShieldBubble>>,
 ) {
@@ -186,15 +190,30 @@ pub fn player_shield_system(
 
     // Only allow activating shield while player is alive on screen
     if player_query.get_single().is_ok() {
-        let alt_just_pressed =
-            keyboard.just_pressed(KeyCode::AltLeft) || keyboard.just_pressed(KeyCode::AltRight);
+        let alt_held =
+            keyboard.pressed(KeyCode::AltLeft) || keyboard.pressed(KeyCode::AltRight);
+        if alt_held && keyboard.just_pressed(KeyCode::Enter) {
+            shield.alt_combo_used = true;
+        }
+
+        let alt_just_released =
+            keyboard.just_released(KeyCode::AltLeft) || keyboard.just_released(KeyCode::AltRight);
+        let alt_shield_trigger = if alt_just_released {
+            let trigger = !shield.alt_combo_used;
+            shield.alt_combo_used = false;
+            trigger
+        } else {
+            false
+        };
+
         let b_just_pressed = gamepads
             .iter()
             .any(|gp| gp.just_pressed(GamepadButton::East));
 
-        if (alt_just_pressed || b_just_pressed) && shield.is_ready() {
+        if (alt_shield_trigger || b_just_pressed) && shield.is_ready() {
             shield.active_remaining = SHIELD_DURATION_SECS;
             shield.cooldown_remaining = SHIELD_COOLDOWN_SECS;
+            play_sfx(&mut commands, assets.sfx_shield_up.clone());
         }
     }
 
@@ -234,6 +253,7 @@ pub fn player_weapon_system(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
     gamepads: Query<&Gamepad>,
+    assets: Res<GameAssets>,
     mut charge: ResMut<PlayerCharge>,
     mut player_query: Query<(&Transform, &mut Sprite), With<Player>>,
     mut orb_query: Query<(&mut Sprite, &mut Transform), (With<ChargeIndicatorOrb>, Without<Player>)>,
@@ -258,11 +278,16 @@ pub fn player_weapon_system(
     let fire_just_released = !fire_pressed && charge.was_fire_held;
     charge.was_fire_held = fire_pressed;
 
+    let was_charged = charge.is_fully_charged();
+
     // Begin or continue charging while Space or Xbox 'A' is held
     if fire_pressed {
         if can_fire {
             charge.is_charging = true;
             charge.hold_seconds += time.delta_secs();
+            if !was_charged && charge.is_fully_charged() {
+                play_sfx(&mut commands, assets.sfx_charge_ready.clone());
+            }
         } else {
             // Cannot start/accumulate charge while 3 shots are already on screen
             charge.is_charging = false;
@@ -300,6 +325,7 @@ pub fn player_weapon_system(
         if can_fire {
             let spawn_pos = player_transform.translation + Vec3::new(0.0, 28.0, 0.0);
             if fully_charged {
+                play_sfx(&mut commands, assets.sfx_mega_beam.clone());
                 // Spawn Piercing Charged Mega-Beam (destroys multiple ships!)
                 commands
                     .spawn((
@@ -325,6 +351,7 @@ pub fn player_weapon_system(
                         });
                     });
             } else {
+                play_sfx(&mut commands, assets.sfx_laser.clone());
                 // Spawn Standard Laser Shot
                 commands.spawn((
                     PlayerProjectile {

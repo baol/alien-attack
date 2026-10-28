@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-use crate::assets::GameAssets;
+use crate::assets::{play_sfx, GameAssets};
 use crate::combat::{AlienProjectile, PlayerProjectile};
 use crate::player::PLAYER_Y;
 use crate::{GameEntity, GameState, PlayerStats};
@@ -207,6 +207,7 @@ pub fn move_alien_formation(
         if stats.level < 2 {
             // Advance to Level 2 automatically!
             stats.level = 2;
+            play_sfx(&mut commands, assets.sfx_victory.clone());
             for proj in &active_projectiles {
                 commands.entity(proj).despawn_recursive();
             }
@@ -306,6 +307,7 @@ pub fn update_roaming_aliens(
     time: Res<Time>,
     formation: Res<AlienFormation>,
     stats: Res<PlayerStats>,
+    assets: Res<GameAssets>,
     mut query: Query<(Entity, &Alien, &mut Transform, &mut RoamingAlien)>,
 ) {
     for (entity, alien, mut transform, mut roam) in &mut query {
@@ -344,6 +346,7 @@ pub fn update_roaming_aliens(
         // Roaming aliens fire extra shots while swooping around!
         roam.fire_timer.tick(time.delta());
         if roam.fire_timer.just_finished() {
+            play_sfx(&mut commands, assets.sfx_alien_laser.clone());
             let bullet_speed = if stats.level == 1 { 265.0 } else { 320.0 };
             commands.spawn((
                 AlienProjectile {
@@ -367,6 +370,7 @@ pub fn alien_shooting_system(
     time: Res<Time>,
     mut formation: ResMut<AlienFormation>,
     stats: Res<PlayerStats>,
+    assets: Res<GameAssets>,
     query: Query<(&Alien, &Transform)>,
 ) {
     formation.fire_timer.tick(time.delta());
@@ -396,6 +400,9 @@ pub fn alien_shooting_system(
     shooters.shuffle(&mut rng);
 
     let bullet_speed = if stats.level == 1 { 255.0 } else { 315.0 };
+    if !shooters.is_empty() {
+        play_sfx(&mut commands, assets.sfx_alien_laser.clone());
+    }
     for &shooter_pos in shooters.iter().take(formation.shots_per_volley) {
         commands.spawn((
             AlienProjectile {

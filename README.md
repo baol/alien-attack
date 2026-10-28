@@ -16,6 +16,7 @@ A fast-paced **Space Invaders** arcade clone built in **Rust** with the **Bevy E
 | **Move** | `Left` / `Right` Arrows | Left Stick / D-Pad |
 | **Fire / Charge (2s)** | `Space` (Tap / Hold) | **A** Button |
 | **Temporary Shield** | `Alt` | **B** Button |
+| **Toggle Fullscreen** | `F` / `F11` / `Alt+Enter` | **Y** / **View (Select)** |
 | **Restart** | `R` / `Enter` | **Start** / **A** |
 
 ## Run
