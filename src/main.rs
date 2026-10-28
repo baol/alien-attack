@@ -203,6 +203,7 @@ fn toggle_fullscreen_system(
 fn restart_game_system(
     mut commands: Commands,
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
     gamepads: Query<&Gamepad>,
     game_entities: Query<Entity, With<GameEntity>>,
     assets: Res<assets::GameAssets>,
@@ -213,11 +214,12 @@ fn restart_game_system(
 ) {
     let alt_held = keyboard.pressed(KeyCode::AltLeft) || keyboard.pressed(KeyCode::AltRight);
     let enter_restart = keyboard.just_pressed(KeyCode::Enter) && !alt_held;
+    let touch_restart = touches.any_just_pressed();
     let gamepad_restart = gamepads
         .iter()
         .any(|gp| gp.just_pressed(GamepadButton::Start) || gp.just_pressed(GamepadButton::South));
 
-    if keyboard.just_pressed(KeyCode::KeyR) || enter_restart || gamepad_restart {
+    if keyboard.just_pressed(KeyCode::KeyR) || enter_restart || gamepad_restart || touch_restart {
         for entity in &game_entities {
             commands.entity(entity).despawn_recursive();
         }

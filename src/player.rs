@@ -134,6 +134,8 @@ pub fn spawn_player(mut commands: Commands, assets: Res<GameAssets>) {
 pub fn player_movement(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    touches: Res<Touches>,
+    windows: Query<&Window>,
     gamepads: Query<&Gamepad>,
     mut query: Query<&mut Transform, With<Player>>,
 ) {
@@ -166,9 +168,20 @@ pub fn player_movement(
 
     direction = direction.clamp(-1.0, 1.0);
 
-    transform.translation.x =
-        (transform.translation.x + direction * PLAYER_SPEED * time.delta_secs())
-            .clamp(-PLAYER_X_BOUND, PLAYER_X_BOUND);
+    // Direct touch swipe on canvas (scales horizontal finger delta to the 800px game world)
+    let mut swipe_dx = 0.0;
+    let win_width = windows
+        .get_single()
+        .map(|w| w.width().max(1.0))
+        .unwrap_or(800.0);
+    for touch in touches.iter() {
+        swipe_dx += touch.delta().x * (800.0 / win_width) * 1.35;
+    }
+
+    transform.translation.x = (transform.translation.x
+        + direction * PLAYER_SPEED * time.delta_secs()
+        + swipe_dx)
+        .clamp(-PLAYER_X_BOUND, PLAYER_X_BOUND);
 }
 
 pub fn player_shield_system(

@@ -2,13 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Alien Attack - Space Invaders</title>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
     html, body {
       width: 100%;
@@ -21,6 +24,18 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      touch-action: none;
+    }
+    #app-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 8px;
     }
     #game-container {
       position: relative;
@@ -31,15 +46,24 @@
       border-radius: 6px;
       box-shadow: 0 0 32px rgba(0, 210, 255, 0.22);
       background: #050512;
+      max-width: 100%;
+      max-height: 100%;
     }
     canvas#bevy-canvas {
       display: block;
       width: 800px;
       height: 600px;
       max-width: 100vw;
-      max-height: 92vh;
+      max-height: 78vh;
       aspect-ratio: 4 / 3;
       outline: none;
+      touch-action: none;
+    }
+    :fullscreen canvas#bevy-canvas,
+    :-webkit-full-screen canvas#bevy-canvas {
+      max-height: 82vh;
+      width: auto;
+      height: 82vh;
     }
     #loading {
       position: absolute;
@@ -48,19 +72,304 @@
       letter-spacing: 1px;
       pointer-events: none;
     }
+
+    /* Fullscreen Toggle Button (Top-Right) */
+    #btn-fullscreen {
+      position: fixed;
+      top: 10px;
+      right: 12px;
+      z-index: 30;
+      background: rgba(12, 20, 48, 0.85);
+      color: #4df2ff;
+      border: 1.5px solid #3a75c4;
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(0, 210, 255, 0.25);
+      touch-action: manipulation;
+    }
+    #btn-fullscreen:active {
+      background: rgba(30, 80, 150, 0.95);
+      transform: scale(0.96);
+    }
+
+    /* Mobile Touch Controls Bar (Swipe Pad + Shield + Fire/Charge) */
+    #mobile-controls {
+      display: none;
+      width: 100%;
+      max-width: 800px;
+      height: 86px;
+      padding: 0 8px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 25;
+    }
+    @media (pointer: coarse), (max-width: 860px) {
+      #mobile-controls {
+        display: flex;
+      }
+      canvas#bevy-canvas {
+        max-height: calc(100vh - 115px);
+      }
+    }
+
+    #swipe-zone {
+      flex: 1;
+      height: 72px;
+      background: linear-gradient(90deg, rgba(16, 32, 72, 0.75), rgba(24, 52, 105, 0.55), rgba(16, 32, 72, 0.75));
+      border: 2px solid #2e62b0;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #82c8ff;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #swipe-thumb {
+      position: absolute;
+      width: 44px;
+      height: 56px;
+      border-radius: 8px;
+      background: rgba(77, 242, 255, 0.28);
+      border: 1.5px solid #4df2ff;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      opacity: 0;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .touch-btn {
+      width: 86px;
+      height: 72px;
+      border-radius: 14px;
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      touch-action: none;
+    }
+    #btn-shield {
+      background: radial-gradient(circle, rgba(20, 110, 140, 0.85), rgba(10, 45, 75, 0.9));
+      border: 2px solid #2ce6ff;
+      color: #b8ffff;
+      box-shadow: 0 0 14px rgba(44, 230, 255, 0.28);
+    }
+    #btn-shield.active {
+      background: rgba(44, 230, 255, 0.55);
+      transform: scale(0.95);
+    }
+    #btn-fire {
+      width: 98px;
+      background: radial-gradient(circle, rgba(160, 110, 15, 0.9), rgba(90, 35, 10, 0.95));
+      border: 2px solid #ffde3b;
+      color: #fff8c4;
+      box-shadow: 0 0 16px rgba(255, 222, 59, 0.32);
+    }
+    #btn-fire.active {
+      background: radial-gradient(circle, rgba(255, 210, 40, 0.85), rgba(190, 95, 15, 0.95));
+      border-color: #ffffff;
+      transform: scale(0.95);
+    }
+    .btn-sub {
+      font-size: 10px;
+      opacity: 0.82;
+    }
   </style>
 </head>
 <body>
-  <div id="game-container">
-    <div id="loading">LOADING ALIEN ATTACK...</div>
-    <canvas id="bevy-canvas" tabindex="0"></canvas>
+  <div id="app-wrapper">
+    <button id="btn-fullscreen" type="button" title="Toggle Fullscreen (F / F11)">[ ] FULLSCREEN</button>
+
+    <div id="game-container">
+      <div id="loading">LOADING ALIEN ATTACK...</div>
+      <canvas id="bevy-canvas" tabindex="0"></canvas>
+    </div>
+
+    <div id="mobile-controls">
+      <div id="swipe-zone">
+        <div id="swipe-thumb"></div>
+        <span>&lt;&lt; SWIPE TO MOVE &gt;&gt;</span>
+      </div>
+      <div class="action-buttons">
+        <button id="btn-shield" class="touch-btn" type="button">
+          <span>SHIELD</span>
+          <span class="btn-sub">ALT / B</span>
+        </button>
+        <button id="btn-fire" class="touch-btn" type="button">
+          <span>FIRE</span>
+          <span class="btn-sub">HOLD 2s BEAM</span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <script type="module">
     import init from './alien-attack.js';
 
+    const wrapper = document.getElementById('app-wrapper');
     const canvas = document.getElementById('bevy-canvas');
     const loading = document.getElementById('loading');
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    const swipeZone = document.getElementById('swipe-zone');
+    const swipeThumb = document.getElementById('swipe-thumb');
+    const btnShield = document.getElementById('btn-shield');
+    const btnFire = document.getElementById('btn-fire');
+
+    // Synthesize keyboard events so Bevy's ButtonInput<KeyCode> receives mobile button & swipe actions
+    function dispatchKey(type, code, key) {
+      const ev = new KeyboardEvent(type, {
+        code,
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
+      window.dispatchEvent(ev);
+      canvas.dispatchEvent(ev);
+    }
+
+    // Fullscreen button (uses Fullscreen API on mobile/desktop + dispatches F11 fallback)
+    btnFullscreen.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+          if (wrapper.requestFullscreen) {
+            await wrapper.requestFullscreen();
+          } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
+          } else {
+            dispatchKey('keydown', 'KeyF', 'f');
+            setTimeout(() => dispatchKey('keyup', 'KeyF', 'f'), 50);
+          }
+        } else {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          }
+        }
+      } catch (_) {
+        dispatchKey('keydown', 'KeyF', 'f');
+        setTimeout(() => dispatchKey('keyup', 'KeyF', 'f'), 50);
+      }
+      canvas.focus();
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      btnFullscreen.textContent = document.fullscreenElement ? '[X] EXIT FULL' : '[ ] FULLSCREEN';
+    });
+
+    // Button 1: Temporary Shield (press & release AltLeft, also Enter on Game Over)
+    function startShield(e) {
+      e.preventDefault();
+      btnShield.classList.add('active');
+      dispatchKey('keydown', 'AltLeft', 'Alt');
+      setTimeout(() => dispatchKey('keyup', 'AltLeft', 'Alt'), 40);
+    }
+    function endShield(e) {
+      e.preventDefault();
+      btnShield.classList.remove('active');
+    }
+    btnShield.addEventListener('touchstart', startShield, { passive: false });
+    btnShield.addEventListener('touchend', endShield, { passive: false });
+    btnShield.addEventListener('touchcancel', endShield, { passive: false });
+    btnShield.addEventListener('mousedown', startShield);
+    btnShield.addEventListener('mouseup', endShield);
+
+    // Button 2: Fire / Hold 2s for Mega-Beam (Space keydown on press, keyup on release)
+    function startFire(e) {
+      e.preventDefault();
+      btnFire.classList.add('active');
+      dispatchKey('keydown', 'Space', ' ');
+      // Also trigger Enter keydown briefly so tapping FIRE on Game Over / Victory restarts
+      dispatchKey('keydown', 'Enter', 'Enter');
+      setTimeout(() => dispatchKey('keyup', 'Enter', 'Enter'), 30);
+    }
+    function endFire(e) {
+      e.preventDefault();
+      btnFire.classList.remove('active');
+      dispatchKey('keyup', 'Space', ' ');
+    }
+    btnFire.addEventListener('touchstart', startFire, { passive: false });
+    btnFire.addEventListener('touchend', endFire, { passive: false });
+    btnFire.addEventListener('touchcancel', endFire, { passive: false });
+    btnFire.addEventListener('mousedown', startFire);
+    btnFire.addEventListener('mouseup', endFire);
+
+    // Swipe Zone: Drag left/right to move ship smoothly
+    let swipeTouchId = null;
+    let lastSwipeX = 0;
+    let moveLeftHeld = false;
+    let moveRightHeld = false;
+
+    function setMoveKeys(left, right) {
+      if (left !== moveLeftHeld) {
+        moveLeftHeld = left;
+        dispatchKey(left ? 'keydown' : 'keyup', 'ArrowLeft', 'ArrowLeft');
+      }
+      if (right !== moveRightHeld) {
+        moveRightHeld = right;
+        dispatchKey(right ? 'keydown' : 'keyup', 'ArrowRight', 'ArrowRight');
+      }
+    }
+
+    swipeZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      swipeTouchId = t.identifier;
+      lastSwipeX = t.clientX;
+      const rect = swipeZone.getBoundingClientRect();
+      swipeThumb.style.opacity = '1';
+      swipeThumb.style.left = `${Math.max(4, Math.min(rect.width - 48, t.clientX - rect.left - 22))}px`;
+    }, { passive: false });
+
+    swipeZone.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === swipeTouchId) {
+          const dx = t.clientX - lastSwipeX;
+          const rect = swipeZone.getBoundingClientRect();
+          swipeThumb.style.left = `${Math.max(4, Math.min(rect.width - 48, t.clientX - rect.left - 22))}px`;
+
+          if (dx < -2.5) {
+            setMoveKeys(true, false);
+            lastSwipeX = t.clientX;
+          } else if (dx > 2.5) {
+            setMoveKeys(false, true);
+            lastSwipeX = t.clientX;
+          }
+        }
+      }
+    }, { passive: false });
+
+    function endSwipe(e) {
+      for (const t of e.changedTouches) {
+        if (t.identifier === swipeTouchId) {
+          swipeTouchId = null;
+          swipeThumb.style.opacity = '0';
+          setMoveKeys(false, false);
+        }
+      }
+    }
+    swipeZone.addEventListener('touchend', endSwipe, { passive: false });
+    swipeZone.addEventListener('touchcancel', endSwipe, { passive: false });
 
     canvas.addEventListener('click', () => canvas.focus());
 
@@ -70,7 +379,6 @@
         canvas.focus();
       })
       .catch((err) => {
-        // Bevy's Winit runner throws a control-flow exception on startup in WASM; ignore it
         if (!err.message.startsWith("Using exceptions for control flow")) {
           console.error(err);
           loading.textContent = "Failed to load WebAssembly module.";

@@ -13,13 +13,13 @@ A fast-paced **Space Invaders** arcade clone built in **Rust** with the **Bevy E
 
 ## Controls
 
-| Action | Keyboard | Controller (Xbox) |
-| :--- | :--- | :--- |
-| **Move** | `Left` / `Right` Arrows | Left Stick / D-Pad |
-| **Fire / Charge (2s)** | `Space` (Tap / Hold) | **A** Button |
-| **Temporary Shield** | `Alt` | **B** Button |
-| **Toggle Fullscreen** | `F` / `F11` / `Alt+Enter` | **Y** / **View (Select)** |
-| **Restart** | `R` / `Enter` | **Start** / **A** |
+| Action | Keyboard | Controller (Xbox) | Mobile / Touch |
+| :--- | :--- | :--- | :--- |
+| **Move** | `Left` / `Right` Arrows | Left Stick / D-Pad | Swipe on Canvas or Swipe Bar |
+| **Fire / Charge (2s)** | `Space` (Tap / Hold) | **A** Button | **FIRE** Button (Tap / Hold 2s) |
+| **Temporary Shield** | `Alt` | **B** Button | **SHIELD** Button |
+| **Toggle Fullscreen** | `F` / `F11` / `Alt+Enter` | **Y** / **View (Select)** | **[ ] FULLSCREEN** Button |
+| **Restart** | `R` / `Enter` | **Start** / **A** | Tap Screen or **FIRE** |
 
 ## Run
 
