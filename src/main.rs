@@ -18,7 +18,8 @@ use assets::load_game_assets;
 use combat::{handle_collisions, move_projectiles, update_explosions};
 use player::{
     player_movement, player_respawn_system, player_shield_system, player_weapon_system,
-    spawn_player, spawn_player_entities, PlayerCharge, PlayerRespawn, PlayerShield,
+    spawn_player, spawn_player_entities, sync_wasm_touch_controls, PlayerCharge, PlayerRespawn,
+    PlayerShield,
 };
 use ui::{despawn_end_overlay, setup_ui, spawn_end_overlay, update_hud};
 
@@ -99,7 +100,14 @@ fn main() {
                 (spawn_player, spawn_aliens).after(load_game_assets),
             ),
         )
-        .add_systems(Update, (animate_starfield, toggle_fullscreen_system))
+        .add_systems(
+            Update,
+            (
+                sync_wasm_touch_controls,
+                animate_starfield,
+                toggle_fullscreen_system,
+            ),
+        )
         .add_systems(
             Update,
             (
@@ -117,6 +125,7 @@ fn main() {
                 update_explosions,
                 update_hud,
             )
+                .after(sync_wasm_touch_controls)
                 .run_if(in_state(GameState::Playing)),
         )
         .add_systems(OnEnter(GameState::Victory), spawn_end_overlay)

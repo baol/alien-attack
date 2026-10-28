@@ -110,10 +110,10 @@ pub fn setup_ui(mut commands: Commands) {
         .with_children(|parent| {
             parent.spawn((
                 Text::new(
-                    "Move: Arrows/Stick | Fire (2s Beam): Space/A | Shield: Alt/B | Fullscreen: F/F11/Y",
+                    "Arrows/Stick/Swipe: Move | Space/A: Fire (2s Beam) | Alt/B: Shield | F: Full",
                 ),
                 TextFont {
-                    font_size: 13.0,
+                    font_size: 11.5,
                     ..default()
                 },
                 TextColor(Color::srgba(0.75, 0.8, 0.95, 0.85)),

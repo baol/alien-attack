@@ -131,6 +131,60 @@ pub fn spawn_player(mut commands: Commands, assets: Res<GameAssets>) {
     spawn_player_entities(&mut commands, &assets);
 }
 
+pub fn sync_wasm_touch_controls(
+    #[allow(unused_mut, unused_variables)] mut keyboard: ResMut<ButtonInput<KeyCode>>,
+    #[allow(unused_mut, unused_variables)] mut query: Query<&mut Transform, With<Player>>,
+) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let Some(win) = web_sys::window() else {
+            return;
+        };
+        let Some(doc) = win.document() else {
+            return;
+        };
+        let Some(el) = doc.get_element_by_id("touch-state") else {
+            return;
+        };
+
+        if let Some(dx_str) = el.get_attribute("data-dx") {
+            if let Ok(dx) = dx_str.parse::<f32>() {
+                if dx.abs() > 0.001 {
+                    if let Ok(mut transform) = query.get_single_mut() {
+                        transform.translation.x =
+                            (transform.translation.x + dx).clamp(-PLAYER_X_BOUND, PLAYER_X_BOUND);
+                    }
+                    let _ = el.set_attribute("data-dx", "0");
+                }
+            }
+        }
+
+        let fire_down = el.get_attribute("data-fire").as_deref() == Some("1");
+        if fire_down {
+            keyboard.press(KeyCode::Space);
+        } else if keyboard.pressed(KeyCode::Space)
+            && el.get_attribute("data-fire-released").as_deref() == Some("1")
+        {
+            keyboard.release(KeyCode::Space);
+            let _ = el.set_attribute("data-fire-released", "0");
+        }
+
+        if el.get_attribute("data-shield").as_deref() == Some("1") {
+            keyboard.press(KeyCode::KeyS);
+            let _ = el.set_attribute("data-shield", "0");
+        } else if keyboard.pressed(KeyCode::KeyS) {
+            keyboard.release(KeyCode::KeyS);
+        }
+
+        if el.get_attribute("data-restart").as_deref() == Some("1") {
+            keyboard.press(KeyCode::KeyR);
+            let _ = el.set_attribute("data-restart", "0");
+        } else if keyboard.pressed(KeyCode::KeyR) {
+            keyboard.release(KeyCode::KeyR);
+        }
+    }
+}
+
 pub fn player_movement(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -218,12 +272,13 @@ pub fn player_shield_system(
         } else {
             false
         };
+        let s_just_pressed = keyboard.just_pressed(KeyCode::KeyS);
 
         let b_just_pressed = gamepads
             .iter()
             .any(|gp| gp.just_pressed(GamepadButton::East));
 
-        if (alt_shield_trigger || b_just_pressed) && shield.is_ready() {
+        if (alt_shield_trigger || s_just_pressed || b_just_pressed) && shield.is_ready() {
             shield.active_remaining = SHIELD_DURATION_SECS;
             shield.cooldown_remaining = SHIELD_COOLDOWN_SECS;
             play_sfx(&mut commands, assets.sfx_shield_up.clone());

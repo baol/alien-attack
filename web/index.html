@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>Alien Attack - Space Invaders</title>
   <style>
     * {
@@ -19,24 +21,24 @@
       background-color: #050512;
       color: #c8dcff;
       font-family: monospace;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       overflow: hidden;
       touch-action: none;
     }
+
     #app-wrapper {
-      position: relative;
-      width: 100%;
-      height: 100%;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 8px;
+      padding: env(safe-area-inset-top, 4px) env(safe-area-inset-right, 6px) env(safe-area-inset-bottom, 6px) env(safe-area-inset-left, 6px);
+      gap: 6px;
+      background: #050512;
     }
+
     #game-container {
       position: relative;
       display: flex;
@@ -44,144 +46,184 @@
       justify-content: center;
       border: 2px solid #284b8c;
       border-radius: 6px;
-      box-shadow: 0 0 32px rgba(0, 210, 255, 0.22);
+      box-shadow: 0 0 24px rgba(0, 210, 255, 0.2);
       background: #050512;
-      max-width: 100%;
-      max-height: 100%;
+      overflow: hidden;
+      flex-shrink: 1;
     }
+
+    /* Always preserve 4:3 aspect ratio in both Portrait and Landscape */
     canvas#bevy-canvas {
       display: block;
-      width: 800px;
-      height: 600px;
-      max-width: 100vw;
-      max-height: 78vh;
       aspect-ratio: 4 / 3;
+      width: min(96vw, calc(82dvh * 4 / 3)) !important;
+      height: auto !important;
+      max-height: 82dvh;
       outline: none;
       touch-action: none;
     }
-    :fullscreen canvas#bevy-canvas,
-    :-webkit-full-screen canvas#bevy-canvas {
-      max-height: 82vh;
-      width: auto;
-      height: 82vh;
+
+    /* When in Fullscreen / Pseudo-Fullscreen mode, expand canvas to fill screen */
+    body.is-fullscreen #game-container {
+      border-width: 1px;
     }
+    body.is-fullscreen canvas#bevy-canvas {
+      width: min(100vw, calc(100dvh * 4 / 3)) !important;
+      max-height: 100dvh;
+    }
+
     #loading {
       position: absolute;
-      font-size: 18px;
+      font-size: 16px;
       color: #4df2ff;
       letter-spacing: 1px;
       pointer-events: none;
+      white-space: nowrap;
     }
 
     /* Fullscreen Toggle Button (Top-Right) */
     #btn-fullscreen {
       position: fixed;
-      top: 10px;
-      right: 12px;
-      z-index: 30;
-      background: rgba(12, 20, 48, 0.85);
+      top: max(8px, env(safe-area-inset-top, 8px));
+      right: max(10px, env(safe-area-inset-right, 10px));
+      z-index: 40;
+      background: rgba(10, 18, 44, 0.88);
       color: #4df2ff;
       border: 1.5px solid #3a75c4;
       border-radius: 6px;
-      padding: 7px 12px;
+      padding: 6px 10px;
       font-family: monospace;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: bold;
+      white-space: nowrap;
       cursor: pointer;
-      box-shadow: 0 0 12px rgba(0, 210, 255, 0.25);
+      box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
       touch-action: manipulation;
     }
     #btn-fullscreen:active {
       background: rgba(30, 80, 150, 0.95);
-      transform: scale(0.96);
+      transform: scale(0.95);
     }
 
-    /* Mobile Touch Controls Bar (Swipe Pad + Shield + Fire/Charge) */
+    /* Mobile Touch Controls Bar */
     #mobile-controls {
       display: none;
       width: 100%;
-      max-width: 800px;
-      height: 86px;
-      padding: 0 8px;
+      max-width: 760px;
+      height: 60px;
+      padding: 0 4px;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      z-index: 25;
+      gap: 8px;
+      z-index: 30;
+      flex-shrink: 0;
     }
-    @media (pointer: coarse), (max-width: 860px) {
+
+    /* Portrait & narrow touch devices: dock controls bar below the canvas */
+    @media (pointer: coarse), (max-width: 900px) {
       #mobile-controls {
         display: flex;
       }
       canvas#bevy-canvas {
-        max-height: calc(100vh - 115px);
+        width: min(98vw, calc((100dvh - 78px) * 4 / 3)) !important;
+        max-height: calc(100dvh - 78px);
+      }
+    }
+
+    /* Landscape on mobile: float semi-transparent controls at bottom corners so canvas gets full height */
+    @media ((pointer: coarse) or (max-width: 950px)) and (orientation: landscape) {
+      #mobile-controls {
+        position: fixed;
+        bottom: max(6px, env(safe-area-inset-bottom, 6px));
+        left: max(8px, env(safe-area-inset-left, 8px));
+        right: max(8px, env(safe-area-inset-right, 8px));
+        width: auto;
+        max-width: none;
+        height: 54px;
+        pointer-events: none;
+      }
+      #swipe-zone,
+      .action-buttons {
+        pointer-events: auto;
+      }
+      #swipe-zone {
+        max-width: 42vw;
+        background: rgba(12, 26, 58, 0.55) !important;
+      }
+      canvas#bevy-canvas {
+        width: min(98vw, calc(96dvh * 4 / 3)) !important;
+        max-height: 96dvh;
       }
     }
 
     #swipe-zone {
       flex: 1;
-      height: 72px;
-      background: linear-gradient(90deg, rgba(16, 32, 72, 0.75), rgba(24, 52, 105, 0.55), rgba(16, 32, 72, 0.75));
-      border: 2px solid #2e62b0;
-      border-radius: 12px;
+      min-width: 110px;
+      height: 54px;
+      background: linear-gradient(90deg, rgba(16, 32, 72, 0.8), rgba(24, 52, 105, 0.6), rgba(16, 32, 72, 0.8));
+      border: 1.5px solid #2e62b0;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #82c8ff;
-      font-size: 14px;
+      font-size: clamp(11px, 3vw, 13px);
       font-weight: bold;
-      letter-spacing: 1px;
+      white-space: nowrap;
       position: relative;
       overflow: hidden;
       touch-action: none;
     }
     #swipe-thumb {
       position: absolute;
-      width: 44px;
-      height: 56px;
-      border-radius: 8px;
-      background: rgba(77, 242, 255, 0.28);
+      width: 38px;
+      height: 44px;
+      border-radius: 7px;
+      background: rgba(77, 242, 255, 0.3);
       border: 1.5px solid #4df2ff;
       pointer-events: none;
-      transition: opacity 0.15s;
       opacity: 0;
     }
 
     .action-buttons {
       display: flex;
-      gap: 12px;
+      gap: 8px;
       align-items: center;
+      flex-shrink: 0;
     }
     .touch-btn {
-      width: 86px;
-      height: 72px;
-      border-radius: 14px;
+      height: 54px;
+      padding: 0 10px;
+      border-radius: 10px;
       font-family: monospace;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 12px;
+      white-space: nowrap;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 3px;
+      gap: 2px;
       cursor: pointer;
       touch-action: none;
     }
     #btn-shield {
-      background: radial-gradient(circle, rgba(20, 110, 140, 0.85), rgba(10, 45, 75, 0.9));
-      border: 2px solid #2ce6ff;
+      min-width: 72px;
+      background: radial-gradient(circle, rgba(20, 110, 140, 0.82), rgba(10, 45, 75, 0.88));
+      border: 1.5px solid #2ce6ff;
       color: #b8ffff;
-      box-shadow: 0 0 14px rgba(44, 230, 255, 0.28);
+      box-shadow: 0 0 10px rgba(44, 230, 255, 0.25);
     }
     #btn-shield.active {
       background: rgba(44, 230, 255, 0.55);
       transform: scale(0.95);
     }
     #btn-fire {
-      width: 98px;
-      background: radial-gradient(circle, rgba(160, 110, 15, 0.9), rgba(90, 35, 10, 0.95));
-      border: 2px solid #ffde3b;
+      min-width: 82px;
+      background: radial-gradient(circle, rgba(160, 110, 15, 0.88), rgba(90, 35, 10, 0.92));
+      border: 1.5px solid #ffde3b;
       color: #fff8c4;
-      box-shadow: 0 0 16px rgba(255, 222, 59, 0.32);
+      box-shadow: 0 0 12px rgba(255, 222, 59, 0.3);
     }
     #btn-fire.active {
       background: radial-gradient(circle, rgba(255, 210, 40, 0.85), rgba(190, 95, 15, 0.95));
@@ -189,14 +231,18 @@
       transform: scale(0.95);
     }
     .btn-sub {
-      font-size: 10px;
-      opacity: 0.82;
+      font-size: 9px;
+      opacity: 0.85;
+      white-space: nowrap;
     }
   </style>
 </head>
 <body>
+  <!-- Shared DOM state bridge read directly by Bevy on WASM every frame -->
+  <div id="touch-state" data-dx="0" data-fire="0" data-fire-released="0" data-shield="0" data-restart="0" style="display:none;"></div>
+
   <div id="app-wrapper">
-    <button id="btn-fullscreen" type="button" title="Toggle Fullscreen (F / F11)">[ ] FULLSCREEN</button>
+    <button id="btn-fullscreen" type="button" title="Toggle Fullscreen">&#x26F6; FULL</button>
 
     <div id="game-container">
       <div id="loading">LOADING ALIEN ATTACK...</div>
@@ -206,16 +252,16 @@
     <div id="mobile-controls">
       <div id="swipe-zone">
         <div id="swipe-thumb"></div>
-        <span>&lt;&lt; SWIPE TO MOVE &gt;&gt;</span>
+        <span>&#x2194; SWIPE</span>
       </div>
       <div class="action-buttons">
         <button id="btn-shield" class="touch-btn" type="button">
           <span>SHIELD</span>
-          <span class="btn-sub">ALT / B</span>
+          <span class="btn-sub">2.5s</span>
         </button>
         <button id="btn-fire" class="touch-btn" type="button">
           <span>FIRE</span>
-          <span class="btn-sub">HOLD 2s BEAM</span>
+          <span class="btn-sub">2s BEAM</span>
         </button>
       </div>
     </div>
@@ -224,64 +270,68 @@
   <script type="module">
     import init from './alien-attack.js';
 
-    const wrapper = document.getElementById('app-wrapper');
+    const docEl = document.documentElement;
     const canvas = document.getElementById('bevy-canvas');
     const loading = document.getElementById('loading');
+    const touchState = document.getElementById('touch-state');
     const btnFullscreen = document.getElementById('btn-fullscreen');
     const swipeZone = document.getElementById('swipe-zone');
     const swipeThumb = document.getElementById('swipe-thumb');
     const btnShield = document.getElementById('btn-shield');
     const btnFire = document.getElementById('btn-fire');
 
-    // Synthesize keyboard events so Bevy's ButtonInput<KeyCode> receives mobile button & swipe actions
-    function dispatchKey(type, code, key) {
-      const ev = new KeyboardEvent(type, {
-        code,
-        key,
-        bubbles: true,
-        cancelable: true,
-      });
-      window.dispatchEvent(ev);
-      canvas.dispatchEvent(ev);
+    function addSwipeDelta(dx) {
+      const cur = parseFloat(touchState.getAttribute('data-dx') || '0') || 0;
+      touchState.setAttribute('data-dx', (cur + dx).toFixed(2));
     }
 
-    // Fullscreen button (uses Fullscreen API on mobile/desktop + dispatches F11 fallback)
-    btnFullscreen.addEventListener('click', async (e) => {
-      e.preventDefault();
-      try {
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-          if (wrapper.requestFullscreen) {
-            await wrapper.requestFullscreen();
-          } else if (wrapper.webkitRequestFullscreen) {
-            wrapper.webkitRequestFullscreen();
-          } else {
-            dispatchKey('keydown', 'KeyF', 'f');
-            setTimeout(() => dispatchKey('keyup', 'KeyF', 'f'), 50);
+    // Fullscreen toggle (Native Fullscreen API + CSS pseudo-fullscreen fallback for iOS Safari)
+    async function toggleFullscreen(e) {
+      if (e) e.preventDefault();
+      const nativeFs = document.fullscreenElement || document.webkitFullscreenElement;
+      const pseudoFs = document.body.classList.contains('is-fullscreen');
+
+      if (!nativeFs && !pseudoFs) {
+        document.body.classList.add('is-fullscreen');
+        btnFullscreen.innerHTML = '&#x2715; EXIT';
+        try {
+          if (docEl.requestFullscreen) {
+            await docEl.requestFullscreen();
+          } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen();
           }
-        } else {
-          if (document.exitFullscreen) {
+        } catch (_) {
+          // Keep CSS pseudo-fullscreen active even if browser blocks native API
+        }
+      } else {
+        document.body.classList.remove('is-fullscreen');
+        btnFullscreen.innerHTML = '&#x26F6; FULL';
+        try {
+          if (document.fullscreenElement && document.exitFullscreen) {
             await document.exitFullscreen();
-          } else if (document.webkitExitFullscreen) {
+          } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
             document.webkitExitFullscreen();
           }
-        }
-      } catch (_) {
-        dispatchKey('keydown', 'KeyF', 'f');
-        setTimeout(() => dispatchKey('keyup', 'KeyF', 'f'), 50);
+        } catch (_) {}
       }
+      window.scrollTo(0, 0);
       canvas.focus();
-    });
+    }
+
+    btnFullscreen.addEventListener('click', toggleFullscreen);
+    btnFullscreen.addEventListener('touchend', toggleFullscreen, { passive: false });
 
     document.addEventListener('fullscreenchange', () => {
-      btnFullscreen.textContent = document.fullscreenElement ? '[X] EXIT FULL' : '[ ] FULLSCREEN';
+      const active = !!document.fullscreenElement;
+      document.body.classList.toggle('is-fullscreen', active);
+      btnFullscreen.innerHTML = active ? '&#x2715; EXIT' : '&#x26F6; FULL';
     });
 
-    // Button 1: Temporary Shield (press & release AltLeft, also Enter on Game Over)
+    // Button 1: Temporary Shield
     function startShield(e) {
       e.preventDefault();
       btnShield.classList.add('active');
-      dispatchKey('keydown', 'AltLeft', 'Alt');
-      setTimeout(() => dispatchKey('keyup', 'AltLeft', 'Alt'), 40);
+      touchState.setAttribute('data-shield', '1');
     }
     function endShield(e) {
       e.preventDefault();
@@ -293,19 +343,18 @@
     btnShield.addEventListener('mousedown', startShield);
     btnShield.addEventListener('mouseup', endShield);
 
-    // Button 2: Fire / Hold 2s for Mega-Beam (Space keydown on press, keyup on release)
+    // Button 2: Fire / Hold 2s for Mega-Beam
     function startFire(e) {
       e.preventDefault();
       btnFire.classList.add('active');
-      dispatchKey('keydown', 'Space', ' ');
-      // Also trigger Enter keydown briefly so tapping FIRE on Game Over / Victory restarts
-      dispatchKey('keydown', 'Enter', 'Enter');
-      setTimeout(() => dispatchKey('keyup', 'Enter', 'Enter'), 30);
+      touchState.setAttribute('data-fire', '1');
+      touchState.setAttribute('data-restart', '1');
     }
     function endFire(e) {
       e.preventDefault();
       btnFire.classList.remove('active');
-      dispatchKey('keyup', 'Space', ' ');
+      touchState.setAttribute('data-fire', '0');
+      touchState.setAttribute('data-fire-released', '1');
     }
     btnFire.addEventListener('touchstart', startFire, { passive: false });
     btnFire.addEventListener('touchend', endFire, { passive: false });
@@ -313,22 +362,9 @@
     btnFire.addEventListener('mousedown', startFire);
     btnFire.addEventListener('mouseup', endFire);
 
-    // Swipe Zone: Drag left/right to move ship smoothly
+    // Swipe Zone: Smooth 1:1 proportional horizontal ship movement
     let swipeTouchId = null;
     let lastSwipeX = 0;
-    let moveLeftHeld = false;
-    let moveRightHeld = false;
-
-    function setMoveKeys(left, right) {
-      if (left !== moveLeftHeld) {
-        moveLeftHeld = left;
-        dispatchKey(left ? 'keydown' : 'keyup', 'ArrowLeft', 'ArrowLeft');
-      }
-      if (right !== moveRightHeld) {
-        moveRightHeld = right;
-        dispatchKey(right ? 'keydown' : 'keyup', 'ArrowRight', 'ArrowRight');
-      }
-    }
 
     swipeZone.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -337,24 +373,20 @@
       lastSwipeX = t.clientX;
       const rect = swipeZone.getBoundingClientRect();
       swipeThumb.style.opacity = '1';
-      swipeThumb.style.left = `${Math.max(4, Math.min(rect.width - 48, t.clientX - rect.left - 22))}px`;
+      swipeThumb.style.left = `${Math.max(4, Math.min(rect.width - 42, t.clientX - rect.left - 19))}px`;
     }, { passive: false });
 
     swipeZone.addEventListener('touchmove', (e) => {
       e.preventDefault();
       for (const t of e.changedTouches) {
         if (t.identifier === swipeTouchId) {
-          const dx = t.clientX - lastSwipeX;
           const rect = swipeZone.getBoundingClientRect();
-          swipeThumb.style.left = `${Math.max(4, Math.min(rect.width - 48, t.clientX - rect.left - 22))}px`;
-
-          if (dx < -2.5) {
-            setMoveKeys(true, false);
-            lastSwipeX = t.clientX;
-          } else if (dx > 2.5) {
-            setMoveKeys(false, true);
-            lastSwipeX = t.clientX;
-          }
+          const dxPx = t.clientX - lastSwipeX;
+          lastSwipeX = t.clientX;
+          swipeThumb.style.left = `${Math.max(4, Math.min(rect.width - 42, t.clientX - rect.left - 19))}px`;
+          // Map swipe bar width to full 730px ship travel range
+          const worldDx = dxPx * (730.0 / Math.max(120.0, rect.width));
+          addSwipeDelta(worldDx);
         }
       }
     }, { passive: false });
@@ -364,12 +396,33 @@
         if (t.identifier === swipeTouchId) {
           swipeTouchId = null;
           swipeThumb.style.opacity = '0';
-          setMoveKeys(false, false);
         }
       }
     }
     swipeZone.addEventListener('touchend', endSwipe, { passive: false });
     swipeZone.addEventListener('touchcancel', endSwipe, { passive: false });
+
+    // Also allow swiping directly on the game canvas
+    let canvasTouchId = null;
+    let lastCanvasX = 0;
+    canvas.addEventListener('touchstart', (e) => {
+      const t = e.changedTouches[0];
+      canvasTouchId = t.identifier;
+      lastCanvasX = t.clientX;
+      touchState.setAttribute('data-restart', '1');
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === canvasTouchId) {
+          const rect = canvas.getBoundingClientRect();
+          const dxPx = t.clientX - lastCanvasX;
+          lastCanvasX = t.clientX;
+          const worldDx = dxPx * (800.0 / Math.max(200.0, rect.width)) * 1.25;
+          addSwipeDelta(worldDx);
+        }
+      }
+    }, { passive: true });
 
     canvas.addEventListener('click', () => canvas.focus());
 
