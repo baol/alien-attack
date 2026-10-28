@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alien Attack - Space Invaders</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #050512;
+      color: #c8dcff;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #284b8c;
+      border-radius: 6px;
+      box-shadow: 0 0 32px rgba(0, 210, 255, 0.22);
+      background: #050512;
+    }
+    canvas#bevy-canvas {
+      display: block;
+      width: 800px;
+      height: 600px;
+      max-width: 100vw;
+      max-height: 92vh;
+      aspect-ratio: 4 / 3;
+      outline: none;
+    }
+    #loading {
+      position: absolute;
+      font-size: 18px;
+      color: #4df2ff;
+      letter-spacing: 1px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="loading">LOADING ALIEN ATTACK...</div>
+    <canvas id="bevy-canvas" tabindex="0"></canvas>
+  </div>
+
+  <script type="module">
+    import init from './alien-attack.js';
+
+    const canvas = document.getElementById('bevy-canvas');
+    const loading = document.getElementById('loading');
+
+    canvas.addEventListener('click', () => canvas.focus());
+
+    init()
+      .then(() => {
+        loading.style.display = 'none';
+        canvas.focus();
+      })
+      .catch((err) => {
+        // Bevy's Winit runner throws a control-flow exception on startup in WASM; ignore it
+        if (!err.message.startsWith("Using exceptions for control flow")) {
+          console.error(err);
+          loading.textContent = "Failed to load WebAssembly module.";
+        } else {
+          loading.style.display = 'none';
+          canvas.focus();
+        }
+      });
+  </script>
+</body>
+</html>

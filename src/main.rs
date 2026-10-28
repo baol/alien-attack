@@ -4,6 +4,7 @@ mod combat;
 mod player;
 mod ui;
 
+use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy::window::{MonitorSelection, PresentMode, WindowMode};
@@ -55,15 +56,28 @@ impl Default for PlayerStats {
 }
 
 fn main() {
+    let present_mode = if cfg!(target_arch = "wasm32") {
+        PresentMode::AutoVsync
+    } else {
+        PresentMode::AutoNoVsync
+    };
+
     App::new()
         .add_plugins(
             DefaultPlugins
+                .set(AssetPlugin {
+                    meta_check: AssetMetaCheck::Never,
+                    ..default()
+                })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "Alien Attack - Space Invaders".to_string(),
                         resolution: (800.0_f32, 600.0_f32).into(),
-                        present_mode: PresentMode::AutoNoVsync,
+                        present_mode,
                         resizable: false,
+                        canvas: Some("#bevy-canvas".to_string()),
+                        fit_canvas_to_parent: false,
+                        prevent_default_event_handling: true,
                         ..default()
                     }),
                     ..default()
