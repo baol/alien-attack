@@ -236,37 +236,56 @@ pub fn update_hud(
     mut bar_q: Query<(&mut Node, &mut BackgroundColor), With<ChargeBarFill>>,
 ) {
     if let Ok(mut text) = score_q.get_single_mut() {
-        **text = format!("SCORE: {:04}", stats.score);
+        let new_val = format!("SCORE: {:04}", stats.score);
+        if **text != new_val {
+            **text = new_val;
+        }
     }
 
     if let Ok(mut text) = level_q.get_single_mut() {
-        **text = format!("LEVEL: {} / 2", stats.level);
+        let new_val = format!("LEVEL: {} / 2", stats.level);
+        if **text != new_val {
+            **text = new_val;
+        }
     }
 
     if let Ok((mut text, mut color)) = shield_q.get_single_mut() {
-        if shield.is_active() {
-            **text = format!("SHIELD: {:.1}s", shield.active_remaining);
-            *color = TextColor(Color::srgb(0.2, 0.95, 1.0));
+        let (new_val, new_col) = if shield.is_active() {
+            (
+                format!("SHIELD: {:.1}s", shield.active_remaining),
+                Color::srgb(0.2, 0.95, 1.0),
+            )
         } else if shield.cooldown_remaining > 0.0 {
-            **text = format!("SHIELD CD: {:.1}s", shield.cooldown_remaining);
-            *color = TextColor(Color::srgb(0.65, 0.65, 0.75));
+            (
+                format!("SHIELD CD: {:.1}s", shield.cooldown_remaining),
+                Color::srgb(0.65, 0.65, 0.75),
+            )
         } else {
-            **text = "SHIELD: READY".to_string();
-            *color = TextColor(Color::srgb(0.2, 0.95, 0.7));
+            ("SHIELD: READY".to_string(), Color::srgb(0.2, 0.95, 0.7))
+        };
+        if **text != new_val {
+            **text = new_val;
+            *color = TextColor(new_col);
         }
     }
 
     if let Ok(mut text) = lives_q.get_single_mut() {
-        **text = format!("LIVES: {}", stats.lives);
+        let new_val = format!("LIVES: {}", stats.lives);
+        if **text != new_val {
+            **text = new_val;
+        }
     }
 
     let shot_count = active_shots.iter().count();
     if let Ok((mut text, mut color)) = shots_q.get_single_mut() {
-        **text = format!("SHOTS: {} / {}", shot_count, MAX_PLAYER_SHOTS);
-        if shot_count >= MAX_PLAYER_SHOTS {
-            *color = TextColor(Color::srgb(1.0, 0.45, 0.35));
-        } else {
-            *color = TextColor(Color::srgb(0.85, 0.9, 1.0));
+        let new_val = format!("SHOTS: {} / {}", shot_count, MAX_PLAYER_SHOTS);
+        if **text != new_val {
+            **text = new_val;
+            if shot_count >= MAX_PLAYER_SHOTS {
+                *color = TextColor(Color::srgb(1.0, 0.45, 0.35));
+            } else {
+                *color = TextColor(Color::srgb(0.85, 0.9, 1.0));
+            }
         }
     }
 
@@ -274,24 +293,34 @@ pub fn update_hud(
     let ready = charge.is_fully_charged();
 
     if let Ok((mut node, mut bg)) = bar_q.get_single_mut() {
-        node.width = Val::Percent(progress * 100.0);
-        if ready {
-            *bg = BackgroundColor(Color::srgb(1.0, 0.92, 0.2));
+        let target_width = Val::Percent((progress * 100.0).round());
+        if node.width != target_width {
+            node.width = target_width;
+        }
+        let target_bg = if ready {
+            Color::srgb(1.0, 0.92, 0.2)
         } else {
-            *bg = BackgroundColor(Color::srgb(0.1, 0.85, 1.0));
+            Color::srgb(0.1, 0.85, 1.0)
+        };
+        if bg.0 != target_bg {
+            *bg = BackgroundColor(target_bg);
         }
     }
 
     if let Ok((mut text, mut color)) = status_q.get_single_mut() {
-        if ready {
-            **text = "MEGA-BEAM READY!".to_string();
-            *color = TextColor(Color::srgb(1.0, 0.92, 0.2));
+        let (new_val, new_col) = if ready {
+            ("MEGA-BEAM READY!".to_string(), Color::srgb(1.0, 0.92, 0.2))
         } else if charge.is_charging {
-            **text = format!("CHARGING {:.1}s", charge.hold_seconds);
-            *color = TextColor(Color::srgb(0.3, 0.9, 1.0));
+            (
+                format!("CHARGING {:.1}s", charge.hold_seconds),
+                Color::srgb(0.3, 0.9, 1.0),
+            )
         } else {
-            **text = "CHARGE (2s):".to_string();
-            *color = TextColor(Color::srgb(0.6, 0.85, 1.0));
+            ("CHARGE (2s):".to_string(), Color::srgb(0.6, 0.85, 1.0))
+        };
+        if **text != new_val {
+            **text = new_val;
+            *color = TextColor(new_col);
         }
     }
 }

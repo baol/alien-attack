@@ -6,7 +6,7 @@ mod ui;
 
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
-use bevy::window::{MonitorSelection, WindowMode};
+use bevy::window::{MonitorSelection, PresentMode, WindowMode};
 use rand::Rng;
 
 use aliens::{
@@ -62,6 +62,7 @@ fn main() {
                     primary_window: Some(Window {
                         title: "Alien Attack - Space Invaders".to_string(),
                         resolution: (800.0_f32, 600.0_f32).into(),
+                        present_mode: PresentMode::AutoNoVsync,
                         resizable: false,
                         ..default()
                     }),
