@@ -4,7 +4,7 @@
 
 A fast-paced **Space Invaders** arcade clone built in **Rust** with the **Bevy Engine**.
 
-**[Play in your Browser (WebAssembly on GitHub Pages)](https://baol.github.io/alien-attack/)**
+**[Play in your Browser (WebAssembly on GitHub Pages)](https://100allora.it/alien-attack/)**
 
 ## Features
 - **Colorful Animated Aliens**: Multi-frame animated alien waves across **2 levels** (classic grid & twin-wing chevron formation) with swooping last-row attackers.
